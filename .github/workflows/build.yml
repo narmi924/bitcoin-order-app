@@ -1,70 +1,70 @@
-name: Bitcoin order App xxxx
+name: Bitcoin order app
+
 on:
   push:
-    branches:
-      - githubcicd
+    branches: [githubcicd]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
 jobs:
-  ci:
+  build:
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        node-version: [16.x]
-
     steps:
-      - uses: actions/checkout@v2
-      - uses: browser-actions/setup-chrome@latest
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v1
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          node-version: ${{ matrix.node-version }}
-
-      - name: Cache node modules
-        id: cache-nodemodules
-        uses: actions/cache@v3
-        env:
-          cache-name: cache-node-modules
-        with:
-          # caching node_modules
-          path: node_modules
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-build-${{ env.cache-name }}-
-            ${{ runner.os }}-build-
-            ${{ runner.os }}-
-      - name: Install Dependencies
-        if: steps.cache-nodemodules.outputs.cache-hit != 'true'
-        run: |
-          npm ci --force
+          node-version: '16'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --force
       - name: Build
-        run: |
-          npm run build --force
+        run: npm run build -- --base-href /bitcoin-order-app/
       - name: Lint
-        run: |
-          npm run lint
-      - name: Update types to latest
-        run: |
-          npm install --save-dev @types/node@latest --force
-      #- name: Test
-      #  run: |
-      #    npm run test --watch=false --browsers=ChromeHeadless
-      - name: Conventional Changelog Action
+        run: npm run lint
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist/bitcoin
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Generate conventional changelog
         id: changelog
-        uses: TriPSs/conventional-changelog-action@v3
+        uses: TriPSs/conventional-changelog-action@v6
         with:
-          github-token: ${{ secrets.WORKSHOP6_GITHUB_TOKEN }}
-          output-file: "false"
-
-      - name: Create Release
-        uses: actions/create-release@v1
-        if: ${{ steps.changelog.outputs.skipped == 'false' }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          output-file: 'false'
+          skip-git-pull: 'true'
+      - name: Create release
+        if: steps.changelog.outputs.skipped == 'false'
         env:
-          GITHUB_TOKEN: ${{ secrets.WORKSHOP6_GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ steps.changelog.outputs.tag }}
-          release_name: ${{ steps.changelog.outputs.tag }}
-          body: ${{ steps.changelog.outputs.clean_changelog }}
-      - name: Deploy
-        run: |
-          npm run deploy
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.changelog.outputs.tag }}
+          RELEASE_NOTES: ${{ steps.changelog.outputs.clean_changelog }}
+        run: gh release create "$RELEASE_TAG" --verify-tag --title "$RELEASE_TAG" --notes "$RELEASE_NOTES"
 
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
