@@ -1,6 +1,12 @@
 #!/bin/bash
+set -euo pipefail
 
-docker pull zaproxy/zap-stable
-docker run -i zaproxy/zap-stable zap-baseline.py -t "https://kenken64.github.io/bitcoin-order-app/" -l PASS > zap_baseline_report.html
+report_dir="${RUNNER_TEMP:?}/zap-report"
+install -d -m 0777 "$report_dir"
 
-echo $? > /dev/null
+docker run --rm \
+  --volume "$report_dir:/zap/wrk:rw" \
+  ghcr.io/zaproxy/zaproxy:stable \
+  zap-baseline.py \
+  -t 'https://narmi924.github.io/bitcoin-order-app/' \
+  -l PASS -I -r zap_baseline_report.html

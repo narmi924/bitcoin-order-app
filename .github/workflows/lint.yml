@@ -1,0 +1,27 @@
+name: linting-tool-scan
+
+on:
+  push:
+    branches: [githubcicd]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Run JSHint
+        run: npm exec --yes --package=jshint@2.13.6 -- bash scripts/jshint-script.sh
+      - name: Upload lint report
+        uses: actions/upload-artifact@v7
+        with:
+          name: linting tool report
+          path: JSHint-report
+          if-no-files-found: error

@@ -1,0 +1,24 @@
+name: owasp-scan
+
+on:
+  push:
+    branches: [githubcicd]
+
+permissions:
+  contents: read
+
+jobs:
+  zap:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Run ZAP Baseline
+        run: bash scripts/zap-script.sh
+      - name: Upload ZAP report
+        uses: actions/upload-artifact@v7
+        with:
+          name: zap report
+          path: ${{ runner.temp }}/zap-report/zap_baseline_report.html
+          if-no-files-found: error
