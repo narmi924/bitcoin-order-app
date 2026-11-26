@@ -48,3 +48,8 @@ Thumbs.db
 server/node_modules
 server/.env
 server/package-lock.json
+# MLOps workshop
+/.venv/
+/.pytest_cache/
+/ml/__pycache__/
+/ml/artifacts/
